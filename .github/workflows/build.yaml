@@ -27,48 +27,51 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: "${{ matrix.target }}"
-      
+
       - name: Setup Cache
         uses: Swatinem/rust-cache@v2
-      
+
       - name: Create Dist Directory
         run: mkdir -p dist
-      
+
       - name: Build Library
         run: cargo build --verbose --locked --release --target ${{ matrix.target }}
-      
+
       - name: Prepare Release Binary
         shell: bash
         run: |
           # Determine the library prefix and suffix
           LIB_PREFIX="lib"
+          if [ "${{ matrix.target }}" == "x86_64-pc-windows-msvc" ]; then
+            LIB_PREFIX=""
+          fi
           LIB_SUFFIX="${{ matrix.lib-suffix }}"
-          
+
           # The built library output location
           # Adjust this path based on your Rust project structure
           LIB_OUTPUT="target/${{ matrix.target }}/release/${LIB_PREFIX}${PROJECT_NAME}${LIB_SUFFIX}"
-          
+
           # Define release names
           LIB_RELEASE="${PROJECT_NAME}-${{ matrix.name }}${LIB_SUFFIX}"
           LIB_RELEASE_VERSIONED="${PROJECT_NAME}-${{ github.ref_name }}-${{ matrix.name }}${LIB_SUFFIX}"
-          
+
           # Ensure the library exists
           if [ ! -f "${LIB_OUTPUT}" ]; then
             echo "Library not found at ${LIB_OUTPUT}"
             exit 1
           fi
-          
+
           # Copy the library to the dist directory
           cp "${LIB_OUTPUT}" "./dist/${LIB_RELEASE}"
-          
+
           # List the contents of the dist directory to verify
           ls -l dist/
-      
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:

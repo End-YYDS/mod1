@@ -1,9 +1,19 @@
 name: Build
-on: [push]
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - ".github/workflows/build.yml"
+
 env:
   PROJECT_NAME: "mod1"
+
 jobs:
   build:
+    if: '!contains(github.event.head_commit.message, ''[skip ci]'')' 
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -26,7 +36,7 @@ jobs:
             lib-suffix: .dylib
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -45,35 +55,33 @@ jobs:
       - name: Prepare Release Binary
         shell: bash
         run: |
-          # Determine the library prefix and suffix
-          LIB_PREFIX="lib"
-          if [ "${{ matrix.target }}" == "x86_64-pc-windows-msvc" ]; then
+          # Windows需要特殊处理
+          if [[ "${{ matrix.target }}" == "x86_64-pc-windows-msvc" ]]; then
             LIB_PREFIX=""
+            LIB_OUTPUT="target/${{ matrix.target }}/release/${PROJECT_NAME}${{ matrix.lib-suffix }}"
+          else
+            LIB_PREFIX="lib"
+            LIB_OUTPUT="target/${{ matrix.target }}/release/${LIB_PREFIX}${PROJECT_NAME}${{ matrix.lib-suffix }}"
           fi
-          LIB_SUFFIX="${{ matrix.lib-suffix }}"
 
-          # The built library output location
-          # Adjust this path based on your Rust project structure
-          LIB_OUTPUT="target/${{ matrix.target }}/release/${LIB_PREFIX}${PROJECT_NAME}${LIB_SUFFIX}"
+          # 定义发布名称
+          LIB_RELEASE="${PROJECT_NAME}-${{ matrix.name }}${{ matrix.lib-suffix }}"
 
-          # Define release names
-          LIB_RELEASE="${PROJECT_NAME}-${{ matrix.name }}${LIB_SUFFIX}"
-          LIB_RELEASE_VERSIONED="${PROJECT_NAME}-${{ github.ref_name }}-${{ matrix.name }}${LIB_SUFFIX}"
-
-          # Ensure the library exists
+          # 确保库文件存在
           if [ ! -f "${LIB_OUTPUT}" ]; then
             echo "Library not found at ${LIB_OUTPUT}"
             exit 1
           fi
 
-          # Copy the library to the dist directory
+          # 复制库到dist目录
           cp "${LIB_OUTPUT}" "./dist/${LIB_RELEASE}"
 
-          # List the contents of the dist directory to verify
+          # 列出dist目录内容
           ls -l dist/
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}-library
           path: dist/
+          retention-days: 30 # 可选：指定保留天数

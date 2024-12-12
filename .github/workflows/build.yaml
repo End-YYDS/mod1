@@ -55,7 +55,6 @@ jobs:
       - name: Prepare Release Binary
         shell: bash
         run: |
-          # Windows需要特殊处理
           if [[ "${{ matrix.target }}" == "x86_64-pc-windows-msvc" ]]; then
             LIB_PREFIX=""
             LIB_OUTPUT="target/${{ matrix.target }}/release/${PROJECT_NAME}${{ matrix.lib-suffix }}"
@@ -63,25 +62,16 @@ jobs:
             LIB_PREFIX="lib"
             LIB_OUTPUT="target/${{ matrix.target }}/release/${LIB_PREFIX}${PROJECT_NAME}${{ matrix.lib-suffix }}"
           fi
-
-          # 定义发布名称
           LIB_RELEASE="${PROJECT_NAME}-${{ matrix.name }}${{ matrix.lib-suffix }}"
-
-          # 确保库文件存在
           if [ ! -f "${LIB_OUTPUT}" ]; then
             echo "Library not found at ${LIB_OUTPUT}"
             exit 1
           fi
-
-          # 复制库到dist目录
           cp "${LIB_OUTPUT}" "./dist/${LIB_RELEASE}"
-
-          # 列出dist目录内容
           ls -l dist/
-
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}-library
           path: dist/
-          retention-days: 30 # 可选：指定保留天数
+          retention-days: 30
